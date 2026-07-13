@@ -27,14 +27,15 @@ export async function GET(request: Request) {
   }
 
   const searchVideo = async (searchQuery: string, filterMusic = true) => {
-    const searchParams = new URLSearchParams({
-      part: "snippet",
-      type: "video",
-      maxResults: "5",
-      q: searchQuery,
-      key: YOUTUBE_API_KEY,
-      order: "relevance",
-    });
+    const searchParams = new URLSearchParams();
+    searchParams.set("part", "snippet");
+    searchParams.set("type", "video");
+    searchParams.set("maxResults", "5");
+    searchParams.set("q", searchQuery);
+    if (YOUTUBE_API_KEY) {
+      searchParams.set("key", YOUTUBE_API_KEY);
+    }
+    searchParams.set("order", "relevance");
 
     if (filterMusic) {
       searchParams.set("videoEmbeddable", "true");
