@@ -6,6 +6,7 @@ export interface IUser {
   email: string;
   password: string;
   school?: string;
+  signupIp?: string;
 }
 
 export interface IUserDocument extends IUser, Document {}
@@ -16,6 +17,7 @@ const UserSchema = new mongoose.Schema<IUserDocument>(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true },
     school: { type: String, default: "" },
+    signupIp: { type: String, default: "" },
   },
   {
     timestamps: true,
