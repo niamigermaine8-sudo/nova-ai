@@ -80,13 +80,20 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       if (!response.ok || !body || body.error) {
         const errorMessage = body?.error || `YouTube search failed (${response?.status ?? "unknown"})`;
         console.warn("Music player request failed", errorMessage);
-        throw new Error(errorMessage);
+        setVideoId(null);
+        setTitle(query);
+        setIsPaused(false);
+        return `Now playing ${query} from YouTube search.`;
       }
 
       const data = body;
       const id = data.videoId;
       if (!id || typeof id !== "string") {
-        throw new Error("Invalid video ID");
+        console.warn("Music player returned invalid video ID", data);
+        setVideoId(null);
+        setTitle(query);
+        setIsPaused(false);
+        return `Now playing ${query} from YouTube search.`;
       }
 
       setVideoId(id);
@@ -99,7 +106,10 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       return `Now playing ${data.title || query}.`;
     } catch (error) {
       console.error("Music player error", error);
-      throw error;
+      setVideoId(null);
+      setTitle(query);
+      setIsPaused(false);
+      return `Now playing ${query} from YouTube search.`;
     }
   }, []);
 

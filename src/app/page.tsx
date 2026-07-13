@@ -1,31 +1,11 @@
+import Navbar from "@/components/layout/Navbar";
+
 export default function Home() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-zinc-950 text-white">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[36rem] bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_45%)]" />
       <main className="relative mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-8 sm:px-10 lg:px-12">
-        <header className="flex items-center justify-between py-6">
-          <span className="text-lg font-semibold tracking-tight text-white">Nova</span>
-          <nav className="hidden items-center gap-8 text-sm text-zinc-300 sm:flex">
-            <a className="transition hover:text-white" href="/features">
-              Features
-            </a>
-            <a className="transition hover:text-white" href="/about">
-              About
-            </a>
-            <a className="transition hover:text-white" href="/pricing">
-              Pricing
-            </a>
-            <a className="transition hover:text-white" href="/signin">
-              Log in
-            </a>
-          </nav>
-          <a
-            className="hidden rounded-full bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-[0_18px_60px_-40px_rgba(59,130,246,0.8)] transition hover:bg-blue-500 sm:inline-flex"
-            href="/signup"
-          >
-            Get started
-          </a>
-        </header>
+        <Navbar />
 
         <section className="flex flex-1 flex-col items-center justify-center text-center">
           <p className="mb-4 text-sm uppercase tracking-[0.3em] text-blue-300/70">

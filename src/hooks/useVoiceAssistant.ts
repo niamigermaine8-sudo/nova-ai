@@ -138,8 +138,22 @@ export function useVoiceAssistant(options?: VoiceAssistantOptions) {
 
       utterance.onend = finish;
       utterance.onerror = finish;
-      setTimeout(finish, 10000);
+
+      const words = reply.trim().split(/\s+/).filter(Boolean).length;
+      const estimatedTime = Math.max(10000, words * 350);
+      const timeout = Math.min(120000, estimatedTime);
+      const timeoutId = window.setTimeout(finish, timeout);
+
       window.speechSynthesis.speak(utterance);
+
+      utterance.onend = () => {
+        window.clearTimeout(timeoutId);
+        finish();
+      };
+      utterance.onerror = () => {
+        window.clearTimeout(timeoutId);
+        finish();
+      };
     });
   }, [getAvailableVoices]);
 
@@ -421,10 +435,11 @@ export function useVoiceAssistant(options?: VoiceAssistantOptions) {
   const submitText = useCallback(
     (text: string) => {
       if (!text.trim() || state !== "idle") return;
+      unlockSpeechSynthesis();
       setCaption(`"${text}"`);
       respond(text);
     },
-    [respond, state]
+    [respond, state, unlockSpeechSynthesis]
   );
 
   return { state, caption, startListening, submitText, interrupt };

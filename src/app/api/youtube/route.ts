@@ -17,13 +17,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const query = url.searchParams.get("query")?.trim();
   const relatedToVideoId = url.searchParams.get("relatedToVideoId")?.trim();
-
-  if (!YOUTUBE_API_KEY) {
-    return NextResponse.json(
-      { error: "Missing YOUTUBE_API_KEY environment variable." },
-      { status: 500 }
-    );
-  }
+  const hasApiKey = !!YOUTUBE_API_KEY;
 
   if (!query && !relatedToVideoId) {
     return NextResponse.json(
@@ -49,6 +43,10 @@ export async function GET(request: Request) {
     } else {
       searchParams.set("videoEmbeddable", "true");
       searchParams.set("videoSyndicated", "true");
+    }
+
+    if (!hasApiKey) {
+      return parseYouTubeSearchHtml(searchQuery);
     }
 
     const searchResponse = await fetch(`https://www.googleapis.com/youtube/v3/search?${searchParams.toString()}`);
@@ -112,6 +110,10 @@ export async function GET(request: Request) {
   };
 
   const fetchRelated = async (videoId: string) => {
+    if (!hasApiKey) {
+      return parseYouTubeSearchHtml("related music");
+    }
+
     const relatedParams = new URLSearchParams({
       part: "snippet",
       type: "video",
@@ -252,7 +254,7 @@ export async function GET(request: Request) {
       result = await searchVideo(query, false);
     }
 
-    if ((!result || result.error) && (!result || /blocked|failed|no playable/i.test(result?.error || ""))) {
+    if (!result || result.error) {
       result = await parseYouTubeSearchHtml(query);
     }
   }
