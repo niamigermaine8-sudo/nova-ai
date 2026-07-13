@@ -47,6 +47,10 @@ export const translations = {
       school: "School",
       logOut: "Log out",
     },
+    auth: {
+      usersTitle: "Accounts",
+      usersDescription: "All accounts stored in the database.",
+    },
     voiceAssistant: {
       idle: 'Tap to speak',
       listening: "Listening…",
@@ -75,6 +79,10 @@ export const translations = {
     concise: "Court",
     balanced: "Équilibré",
     detailed: "Détaillé",
+    auth: {
+      usersTitle: "Comptes",
+      usersDescription: "Tous les comptes stockés dans la base de données.",
+    },
     dashboard: {
       placeholder: "Tapez une commande…",
       send: "Envoyer",
