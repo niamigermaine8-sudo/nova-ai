@@ -28,7 +28,7 @@ export default function YoutubePlayerClient() {
         <div className="relative aspect-video w-full overflow-hidden rounded-3xl border border-white/10 bg-black sm:w-[80vw] lg:w-[60vw]">
           <iframe
             className="h-full w-full"
-            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&playsinline=1&enablejsapi=1`}
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`}
             title={title}
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             allowFullScreen

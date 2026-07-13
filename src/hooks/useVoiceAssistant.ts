@@ -45,6 +45,104 @@ export function useVoiceAssistant(options?: VoiceAssistantOptions) {
     }
   }, []);
 
+  const speechUnlockedRef = useRef(false);
+
+  const getAvailableVoices = useCallback(async () => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      return [] as SpeechSynthesisVoice[];
+    }
+
+    let voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      return voices;
+    }
+
+    return await new Promise<SpeechSynthesisVoice[]>((resolve) => {
+      const onVoicesChanged = () => {
+        const loadedVoices = window.speechSynthesis.getVoices();
+        if (loadedVoices.length > 0) {
+          window.speechSynthesis.removeEventListener("voiceschanged", onVoicesChanged);
+          resolve(loadedVoices);
+        }
+      };
+
+      window.speechSynthesis.addEventListener("voiceschanged", onVoicesChanged);
+      setTimeout(() => {
+        window.speechSynthesis.removeEventListener("voiceschanged", onVoicesChanged);
+        resolve(window.speechSynthesis.getVoices());
+      }, 1200);
+    });
+  }, []);
+
+  const unlockSpeechSynthesis = useCallback(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window) || speechUnlockedRef.current) {
+      return;
+    }
+
+    try {
+      const unlockUtterance = new SpeechSynthesisUtterance("");
+      unlockUtterance.onend = () => {
+        speechUnlockedRef.current = true;
+      };
+      window.speechSynthesis.speak(unlockUtterance);
+      window.speechSynthesis.cancel();
+      speechUnlockedRef.current = true;
+    } catch {}
+  }, []);
+
+  const speakReply = useCallback(async (reply: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      return;
+    }
+
+    unlockSpeechSynthesis();
+
+    try {
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.resume?.();
+    } catch {}
+
+    const utterance = new SpeechSynthesisUtterance(reply);
+    utterance.lang = languageRef.current === "fr" ? "fr-FR" : "en-US";
+    utterance.volume = 1;
+    utterance.rate = 1;
+    utterance.pitch = 1;
+
+    try {
+      const prefVoice = window.localStorage.getItem("nova-voice");
+      let voices = window.speechSynthesis.getVoices();
+      if (!voices.length) {
+        voices = await getAvailableVoices();
+      }
+
+      const languageCode = languageRef.current === "fr" ? "fr-FR" : "en-US";
+      const fromLanguage = voices.find((v) => v.lang === languageCode);
+      const fromVoiceName = prefVoice
+        ? voices.find((v) => v.name.toLowerCase().includes(prefVoice.toLowerCase()))
+        : null;
+
+      if (fromVoiceName) {
+        utterance.voice = fromVoiceName;
+      } else if (fromLanguage) {
+        utterance.voice = fromLanguage;
+      }
+    } catch {}
+
+    await new Promise<void>((resolve) => {
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        resolve();
+      };
+
+      utterance.onend = finish;
+      utterance.onerror = finish;
+      setTimeout(finish, 10000);
+      window.speechSynthesis.speak(utterance);
+    });
+  }, [getAvailableVoices]);
+
   const respond = useCallback(async (text: string) => {
     setState("thinking");
     setCaption(tRef.current.voiceAssistant.thinking);
@@ -57,15 +155,32 @@ export function useVoiceAssistant(options?: VoiceAssistantOptions) {
     })();
 
     try {
-      const playCommandMatch = languageRef.current === "fr"
-        ? text.match(/^\s*(?:joue|mets|lance|écoute)\s+(?:de la |du |la |une |le )?(.*)/i)
-        : text.match(/^\s*(?:play|open)\s+(?:me\s+)?(.+)/i);
-      const searchCommandMatch = languageRef.current === "fr"
-        ? text.match(/^\s*(?:cherche|trouve)\s+(.*)/i)
-        : text.match(/^\s*(?:search for|find)\s+(.+)/i);
+      // Enhanced music intent detection
       const musicKeywordMatch = languageRef.current === "fr"
         ? /\b(musique|chanson|chansons|morceau|album|artiste|groupe|vidéo|remix|cover|live)\b/i
         : /\b(music|song|songs|track|album|artist|band|official|video|remix|cover)\b/i;
+
+      // Explicit play/search commands (existing behavior)
+      const playCommandMatch = languageRef.current === "fr"
+        ? text.match(/^\s*(?:joue|mets|lance|écoute)\s+(?:de la |du |la |une |le )?(.*)/i)
+        : text.match(/^\s*(?:play|open)\s+(?:me\s+)?(.+)/i);
+
+      const searchCommandMatch = languageRef.current === "fr"
+        ? text.match(/^\s*(?:cherche|trouve)\s+(.*)/i)
+        : text.match(/^\s*(?:search for|find)\s+(.+)/i);
+
+      // Implicit intents: "I'm in the mood for X", "I want to hear Y", "put on some X", "play me X"
+      const implicitMatchers = [
+        // English patterns
+        /(?:i(?:'m| am) in the mood for|i want to hear|i'd like to hear|i want to hear|i want|i'd like|can you play|could you play|play me|put on|queue|start)\s+(.+)/i,
+        // French patterns (cover many colloquial verbs and variants)
+        /(?:écoute|écoute-moi|écoute moi|je veux écouter|je voudrais écouter|je veux|je voudrais|mets|mets-moi|mets moi|mets de la|mets du|joue|joue-moi|joue moi|fais jouer|fais-moi|fais moi|passe|balance|trouve-moi|trouve moi)\s+(.+)/i,
+        // short 'for/pour' tail as fallback
+        /(?:for|pour)\s+(.+)$/i,
+        // quoted titles
+        /"([^"]+)"/i,
+      ];
+
       let musicQuery: string | null = null;
 
       if (playCommandMatch) {
@@ -75,10 +190,28 @@ export function useVoiceAssistant(options?: VoiceAssistantOptions) {
         if (musicKeywordMatch.test(maybeQuery)) {
           musicQuery = maybeQuery;
         }
+      } else {
+        // check implicit patterns
+        for (const re of implicitMatchers) {
+          const m = text.match(re);
+          if (m && m[1]) {
+            const candidate = m[1].trim();
+            // require either an explicit music keyword or a short candidate that looks like an artist/title
+            if (musicKeywordMatch.test(candidate) || candidate.split(" ").length <= 6) {
+              musicQuery = candidate;
+              break;
+            }
+          }
+        }
+
+        // As a last resort, if user mentions music-related words anywhere, treat the whole text as a query
+        if (!musicQuery && musicKeywordMatch.test(text)) {
+          musicQuery = text.trim();
+        }
       }
 
       if (musicQuery) {
-        let query = musicQuery.replace(/^(?:me|some|a|the)\s+/i, "");
+        let query = musicQuery.replace(/^(?:me|some|a|the|des|du|la|le|une|un)\s+/i, "");
 
         if (!musicKeywordMatch.test(query)) {
           query = languageRef.current === "fr" ? `${query} chanson officielle` : `${query} official music video`;
@@ -90,11 +223,9 @@ export function useVoiceAssistant(options?: VoiceAssistantOptions) {
             pausedMusicRef.current = false;
             setState("speaking");
             setCaption(reply);
-
-            setTimeout(() => {
-              setState("idle");
-              setCaption(tRef.current.voiceAssistant.idle);
-            }, 2500);
+            await speakReply(reply);
+            setState("idle");
+            setCaption(tRef.current.voiceAssistant.idle);
             return;
           } catch (playError) {
             await resumeMusic();
@@ -138,36 +269,14 @@ export function useVoiceAssistant(options?: VoiceAssistantOptions) {
       setCaption(reply);
 
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        const utterance = new SpeechSynthesisUtterance(reply);
-        utterance.lang = languageRef.current === "fr" ? "fr-FR" : "en-US";
-        try {
-          const prefVoice = window.localStorage.getItem("nova-voice");
-          const voices = window.speechSynthesis.getVoices();
-          const languageCode = languageRef.current === "fr" ? "fr-FR" : "en-US";
-          const fromLanguage = voices.find((v) => v.lang === languageCode);
-          const fromVoiceName = prefVoice
-            ? voices.find((v) => v.name.toLowerCase().includes(prefVoice.toLowerCase()))
-            : null;
-
-          if (fromVoiceName) {
-            utterance.voice = fromVoiceName;
-          } else if (fromLanguage) {
-            utterance.voice = fromLanguage;
-          }
-        } catch {}
-        utterance.onend = async () => {
-          setState("idle");
-          setCaption(tRef.current.voiceAssistant.idle);
-          await resumeMusic();
-        };
-        window.speechSynthesis.speak(utterance);
+        await speakReply(reply);
       } else {
-        setTimeout(async () => {
-          setState("idle");
-          setCaption(tRef.current.voiceAssistant.idle);
-          await resumeMusic();
-        }, 2000);
+        await new Promise((resolve) => setTimeout(resolve, 2000));
       }
+
+      setState("idle");
+      setCaption(tRef.current.voiceAssistant.idle);
+      await resumeMusic();
     } catch (err: any) {
       // if aborted, simply reset state without treating as an error
       const isAbort = err && (err.name === "AbortError" || err.message === "The user aborted a request.");
@@ -255,6 +364,8 @@ export function useVoiceAssistant(options?: VoiceAssistantOptions) {
 
     recognition.onaudiostart = () => console.log("SpeechRecognition audio started");
     recognition.onaudioend = () => console.log("SpeechRecognition audio ended");
+
+    unlockSpeechSynthesis();
 
     recognition.onerror = (event: any) => {
       console.warn("SpeechRecognition error", {

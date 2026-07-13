@@ -7,7 +7,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { saveAccount, isAuthenticated } from "@/lib/auth";
+import { isAuthenticated } from "@/lib/auth";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -24,7 +24,7 @@ export default function SignUpPage() {
     }
   }, [router]);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!formData.fullName.trim() || !formData.email.trim() || !formData.password.trim()) {
@@ -37,9 +37,25 @@ export default function SignUpPage() {
       return;
     }
 
-    saveAccount(formData);
-    toast.success("Account created successfully. Redirecting to login...");
-    router.push("/signin");
+    try {
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      const body = await response.json();
+      if (!response.ok) {
+        toast.error(body.error || "Unable to create account.");
+        return;
+      }
+
+      toast.success("Account created successfully. Redirecting to login...");
+      router.push("/signin");
+    } catch (error) {
+      toast.error("Unable to create account. Please try again later.");
+      console.error("Signup error", error);
+    }
   };
 
   return (

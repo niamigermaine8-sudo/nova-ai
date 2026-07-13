@@ -5,6 +5,7 @@ export type NovaAccount = {
 };
 
 const AUTH_KEY = "nova-authenticated";
+const AUTH_USER_KEY = "nova-authenticated-user";
 const ACCOUNT_KEY = "nova-account";
 
 export function isAuthenticated() {
@@ -15,12 +16,30 @@ export function isAuthenticated() {
   return window.localStorage.getItem(AUTH_KEY) === "true";
 }
 
-export function setAuthenticated() {
+export function setAuthenticated(user: { fullName: string; email: string; school?: string }) {
   if (typeof window === "undefined") {
     return;
   }
 
   window.localStorage.setItem(AUTH_KEY, "true");
+  window.localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+}
+
+export function getAuthenticatedUser() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const raw = window.localStorage.getItem(AUTH_USER_KEY);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as { fullName: string; email: string; school?: string };
+  } catch {
+    return null;
+  }
 }
 
 export function clearAuthenticated() {
@@ -29,6 +48,7 @@ export function clearAuthenticated() {
   }
 
   window.localStorage.removeItem(AUTH_KEY);
+  window.localStorage.removeItem(AUTH_USER_KEY);
 }
 
 export function getStoredAccount(): NovaAccount | null {

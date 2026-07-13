@@ -7,7 +7,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getStoredAccount, isAuthenticated, setAuthenticated } from "@/lib/auth";
+import { isAuthenticated, setAuthenticated } from "@/lib/auth";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -23,7 +23,7 @@ export default function SignInPage() {
     }
   }, [router]);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!formData.email.trim() || !formData.password.trim()) {
@@ -31,16 +31,26 @@ export default function SignInPage() {
       return;
     }
 
-    const storedAccount = getStoredAccount();
+    try {
+      const response = await fetch("/api/auth/signin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
 
-    if (!storedAccount || storedAccount.email !== formData.email || storedAccount.password !== formData.password) {
-      toast.error("Invalid email or password.");
-      return;
+      const body = await response.json();
+      if (!response.ok) {
+        toast.error(body.error || "Invalid email or password.");
+        return;
+      }
+
+      setAuthenticated({ fullName: body.user.fullName, email: body.user.email, school: body.user.school });
+      toast.success("Signed in successfully. Redirecting to dashboard...");
+      router.push("/dashboard");
+    } catch (error) {
+      toast.error("Unable to sign in. Please try again later.");
+      console.error("Signin error", error);
     }
-
-    setAuthenticated();
-    toast.success("Signed in successfully. Redirecting to dashboard...");
-    router.push("/dashboard");
   };
 
   return (

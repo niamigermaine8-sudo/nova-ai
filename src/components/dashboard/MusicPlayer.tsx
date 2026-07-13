@@ -70,7 +70,8 @@ export default function MusicPlayer({
     return null;
   }
 
-  const src = `https://www.youtube.com/embed/${videoId}?autoplay=1&playsinline=1&rel=0&enablejsapi=1`;
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const src = `https://www.youtube.com/embed/${videoId}?autoplay=1&playsinline=1&rel=0&enablejsapi=1&origin=${encodeURIComponent(origin)}`;
 
   return (
     <div className="fixed bottom-6 right-6 z-50 w-80 overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/95 shadow-2xl shadow-black/40 backdrop-blur-xl">

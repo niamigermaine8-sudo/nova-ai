@@ -1,11 +1,6 @@
 import mongoose from "mongoose";
 
-const MONGODB_URI = process.env.MONGODB_URI;
-
-if (!MONGODB_URI) {
-  throw new Error("Please define the MONGODB_URI environment variable inside .env.local");
-}
-
+const MONGODB_URI = process.env.MONGODB_URI || "";
 const mongoUri: string = MONGODB_URI;
 
 const cached = globalThis as typeof globalThis & {
@@ -24,6 +19,10 @@ export async function connectToDatabase() {
 
   if (!connection) {
     throw new Error("MongoDB connection is not initialized");
+  }
+
+  if (!mongoUri) {
+    throw new Error("Please define the MONGODB_URI environment variable.");
   }
 
   if (connection.conn) {
